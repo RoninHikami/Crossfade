@@ -67,6 +67,8 @@ export async function fetchZvukProfile(token = null) {
 
 export class ZvukService {
   name = "zvuk";
+  // Сколько треков искать одновременно. У Звука чувствительная защита от ботов.
+  concurrency = 2;
 
   constructor({ token }) {
     this.token = token;

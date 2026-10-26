@@ -125,60 +125,100 @@ export async function syncLikes(source, target, state, options = {}) {
   const pending = [];
   const flush = async () => {
     if (!pending.length) return;
+    const batch = pending.splice(0);
     if (!dryRun) {
-      await target.like(pending.map((p) => p.target));
-      for (const p of pending) markMatched(state, src, dst, p.source.id, p.target.id, displayTrack(p.source));
+      await target.like(batch.map((p) => p.target));
+      for (const p of batch) markMatched(state, src, dst, p.source.id, p.target.id, displayTrack(p.source));
       await saveState(state);
     }
-    report.liked.push(...pending);
-    pending.length = 0;
+    report.liked.push(...batch);
   };
 
-  for (let i = 0; i < todo.length; i++) {
-    if (shouldStop()) {
-      report.stopped = true;
-      break;
-    }
-    // Периодически сохраняем прогресс, чтобы не искать заново после перерыва.
-    if (!dryRun && i > 0 && i % 25 === 0) await saveState(state);
-    const track = todo[i];
-    onProgress({ phase: "matching", processed: i, todo: todo.length, current: displayTrack(track) });
-
-    const existing = index.find(track, threshold);
-    if (existing) {
-      report.alreadyLiked++;
-      if (!dryRun) markMatched(state, src, dst, track.id, existing.id, displayTrack(track));
-      continue;
-    }
-
-    let found;
-    try {
-      found = await findMatch(target, track, threshold);
-    } catch (error) {
+  // Применяем результат поиска к отчёту, состоянию и очереди лайков.
+  const commit = async (track, result) => {
+    if (result.error) {
       // Сеть, лимиты API и т.п. — попробуем в следующий раз.
-      if (error.fatal) throw error;
-      report.errors.push({ track, message: String(error.message || error) });
-      continue;
+      report.errors.push({ track, message: String(result.error.message || result.error) });
+      return;
     }
-
-    if (!found.match) {
+    const match = result.existing || result.found.match;
+    if (!match) {
       report.notFound.push(track);
       if (!dryRun) markNotFound(state, src, dst, track.id, displayTrack(track), target.searchUrl(track));
-      continue;
+      return;
     }
-
-    if (index.ids.has(found.match.id)) {
+    if (result.existing || index.ids.has(match.id)) {
       report.alreadyLiked++;
-      if (!dryRun) markMatched(state, src, dst, track.id, found.match.id, displayTrack(track));
-      continue;
+      if (!dryRun) markMatched(state, src, dst, track.id, match.id, displayTrack(track));
+      return;
     }
-
-    index.add(found.match);
-    pending.push({ source: track, target: found.match, score: found.score });
+    index.add(match);
+    pending.push({ source: track, target: match, score: result.found.score });
     if (pending.length >= FLUSH_EVERY) await flush();
-  }
+  };
 
-  await flush();
+  // Ищем треки в несколько потоков (сколько выдерживает сервис), а результаты
+  // применяем строго по порядку: так лайки по-прежнему ставятся от старых
+  // к новым, а поиск не ждёт, пока ставятся лайки.
+  const results = new Array(todo.length);
+  let nextToSearch = 0;
+  let committed = 0;
+  let fatal = null;
+  let commitChain = Promise.resolve();
+
+  const drain = () => {
+    commitChain = commitChain.then(async () => {
+      while (!fatal && committed < todo.length && results[committed]) {
+        const i = committed++;
+        await commit(todo[i], results[i]);
+        results[i] = true;
+        // Периодически сохраняем прогресс, чтобы не искать заново после перерыва.
+        if (!dryRun && committed % 25 === 0) await saveState(state);
+      }
+    }).catch((error) => { fatal ??= error; });
+    return commitChain;
+  };
+
+  const worker = async () => {
+    while (!fatal && nextToSearch < todo.length) {
+      if (shouldStop()) {
+        report.stopped = true;
+        return;
+      }
+      const i = nextToSearch++;
+      const track = todo[i];
+      onProgress({ phase: "matching", processed: committed, todo: todo.length, current: displayTrack(track) });
+      const existing = index.find(track, threshold);
+      if (existing) {
+        results[i] = { existing };
+      } else {
+        try {
+          results[i] = { found: await findMatch(target, track, threshold) };
+        } catch (error) {
+          if (error.fatal) {
+            fatal ??= error;
+            return;
+          }
+          results[i] = { error };
+        }
+      }
+      drain();
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.max(1, target.concurrency || 1) }, worker));
+  await drain();
+  if (!fatal) {
+    try {
+      await flush();
+    } catch (error) {
+      fatal = error;
+    }
+  }
+  if (fatal) {
+    if (!dryRun) await saveState(state);
+    throw fatal;
+  }
   if (!dryRun) await saveState(state);
   onProgress({ phase: "done", processed: todo.length, todo: todo.length });
   return report;

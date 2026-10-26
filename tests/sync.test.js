@@ -127,3 +127,43 @@ test("поиск не останавливается, если первый за
   assert.equal(match.id, "real");
   assert.deepEqual(queries, ["track:exact", "plain"]);
 });
+
+test("поиск идёт параллельно, а лайки ставятся по порядку", async () => {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const count = 12;
+  const source = new FakeService("yandex",
+    Array.from({ length: count }, (_, i) => tr("yandex", `y${i}`, `Song ${i}`, "A")).reverse(), []);
+  const target = new FakeService("youtube", [],
+    Array.from({ length: count }, (_, i) => tr("youtube", `t${i}`, `Song ${i}`, "A")));
+  target.concurrency = 4;
+  let active = 0;
+  let maxActive = 0;
+  const searchText = target.searchText.bind(target);
+  target.searchText = async (query) => {
+    active++;
+    maxActive = Math.max(maxActive, active);
+    // Ответы приходят вразнобой: у разных треков разная задержка.
+    await sleep(5 + ((Number(query.split(" ")[1]) * 7) % 13));
+    active--;
+    return searchText(query);
+  };
+  const likedOrder = [];
+  target.like = async (tracks) => { likedOrder.push(...tracks.map((t) => t.id)); };
+
+  const report = await syncLikes(source, target, {});
+
+  assert.equal(maxActive, 4);
+  assert.deepEqual(likedOrder, Array.from({ length: count }, (_, i) => `t${i}`));
+  assert.equal(report.liked.length, count);
+});
+
+test("ошибка входа посреди переноса сохраняет сделанное и прерывает перенос", async () => {
+  const { source, target, state } = make();
+  target.searchText = async () => { throw Object.assign(new Error("вход устарел"), { fatal: true }); };
+  let saved = null;
+  await assert.rejects(
+    syncLikes(source, target, state, { saveState: async (s) => { saved = structuredClone(s); } }),
+    /вход устарел/,
+  );
+  assert.ok(saved);
+});

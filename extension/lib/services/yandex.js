@@ -28,6 +28,8 @@ function toTrack(item, likedAt = null) {
 
 export class YandexService {
   name = "yandex";
+  // Сколько треков искать одновременно.
+  concurrency = 4;
 
   constructor({ token, uid }) {
     this.token = token;

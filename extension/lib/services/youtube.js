@@ -14,6 +14,7 @@ const SONGS_FILTER = "EgWKAQIIAWoMEA4QChADEAQQCRAF";
 const LIKED_PLAYLIST = "VLLM";
 const SEARCH_LIMIT = 5;
 const MAX_PAGES = 200;
+const LIKE_PARALLEL = 3;
 
 // --- Авторизация по cookie --------------------------------------------------
 
@@ -157,6 +158,8 @@ function nextPage(response) {
 
 export class YouTubeService {
   name = "youtube";
+  // Сколько треков искать одновременно.
+  concurrency = 4;
 
   async call(endpoint, body = {}, params = "") {
     await ensureHeaderRules();
@@ -221,10 +224,14 @@ export class YouTubeService {
     return `${ORIGIN}/search?q=${encodeURIComponent(text)}`;
   }
 
-  // Лайк ставится по одному треку, как кнопкой «Нравится» на сайте.
+  // Лайк ставится на каждый трек отдельно, как кнопкой «Нравится» на сайте.
+  // Отправляем по несколько запросов сразу: порядок между группами сохраняется,
+  // а внутри группы соседние треки могут поменяться местами — разница в доли секунды.
   async like(tracks) {
-    for (const track of tracks) {
-      await this.call("like/like", { target: { videoId: track.id } });
+    for (let i = 0; i < tracks.length; i += LIKE_PARALLEL) {
+      await Promise.all(tracks.slice(i, i + LIKE_PARALLEL).map(
+        (track) => this.call("like/like", { target: { videoId: track.id } }),
+      ));
     }
   }
 }

@@ -25,6 +25,8 @@ function toTrack(item, likedAt = null) {
 
 export class SpotifyService {
   name = "spotify";
+  // Сколько треков искать одновременно.
+  concurrency = 4;
 
   // getToken — функция, возвращающая действующий access token (обновляет его при необходимости).
   constructor({ getToken }) {
