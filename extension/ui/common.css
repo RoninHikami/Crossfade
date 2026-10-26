@@ -102,7 +102,7 @@ input[type="text"]:focus, select:focus { outline: 2px solid var(--accent); outli
 .logo.yandex { background: var(--yandex); color: #000; }
 .logo.spotify { background: var(--spotify); color: #000; }
 .logo.zvuk { background: linear-gradient(135deg, #ff4f8b, #7b5cff); color: #fff; }
-.logo.youtube { background: #ff0033; color: #fff; font-size: 12px; }
+.logo.youtube { background: #ff0033; color: #fff; font-size: 11px; letter-spacing: -0.02em; }
 .service .info { flex: 1; min-width: 0; }
 .service .name { font-weight: 600; }
 .service .state { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
