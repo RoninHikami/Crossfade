@@ -30,8 +30,10 @@ export async function request(url, init = {}, { service = "", retries = 4 } = {}
     }
     const retryable = response.status === 429 || response.status >= 500;
     if (!retryable || attempt >= retries) {
-      const body = await response.text().catch(() => "");
-      throw new ApiError(`${service}: ошибка ${response.status} ${body.slice(0, 200)}`, {
+      const body = (await response.text().catch(() => "")).trim();
+      const where = `${init.method || "GET"} ${new URL(url).pathname}`;
+      const details = body ? `: ${body.slice(0, 200)}` : "";
+      throw new ApiError(`${service}: ошибка ${response.status} (${where})${details}`, {
         status: response.status,
         fatal: response.status === 403,
       });

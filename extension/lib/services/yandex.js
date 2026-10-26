@@ -8,6 +8,32 @@ const FETCH_BATCH = 200;
 const LIKE_BATCH = 100;
 const SEARCH_LIMIT = 5;
 
+// Браузер добавляет к запросам расширения заголовок Origin: chrome-extension://…,
+// и API Яндекса отвечает на такие запросы ошибкой 403. Убираем его — так
+// запросы выглядят как у приложений Яндекс Музыки. Правило касается только
+// фоновых запросов (без вкладки), поэтому сам сайт music.yandex.ru не затрагивается.
+let originRule = null;
+
+function removeOriginHeader() {
+  if (!globalThis.chrome?.declarativeNetRequest) return Promise.resolve();
+  originRule ??= chrome.declarativeNetRequest.updateSessionRules({
+    removeRuleIds: [1],
+    addRules: [{
+      id: 1,
+      priority: 1,
+      action: {
+        type: "modifyHeaders",
+        requestHeaders: [{ header: "origin", operation: "remove" }],
+      },
+      condition: {
+        requestDomains: ["api.music.yandex.net"],
+        tabIds: [chrome.tabs.TAB_ID_NONE],
+      },
+    }],
+  });
+  return originRule;
+}
+
 function toTrack(item, likedAt = null) {
   const album = item.albums?.[0];
   return {
@@ -36,6 +62,7 @@ export class YandexService {
   async call(path, { method = "GET", params, body } = {}) {
     const url = new URL(API + path);
     if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
+    await removeOriginHeader();
     const data = await request(url, {
       method,
       body,

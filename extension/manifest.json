@@ -27,7 +27,7 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["storage", "alarms", "identity", "notifications"],
+  "permissions": ["storage", "alarms", "identity", "notifications", "declarativeNetRequestWithHostAccess"],
   "host_permissions": [
     "https://api.music.yandex.net/*",
     "https://oauth.yandex.ru/*",
