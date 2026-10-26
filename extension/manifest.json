@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Crossfade — перенос лайков",
+  "short_name": "Crossfade",
+  "version": "0.1.0",
+  "description": "Переносит лайкнутые треки между Яндекс Музыкой и Spotify. Только добавляет лайки, ничего не удаляет.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6dw9JOptDuArhrqzC3HTd5+dRmoGdEinn4xo/gKjhIbSTZ//fsLDVXZdlODX3wiInqLZ/Rr7tI+1IOczMdWxMNrjgrei2vGnfZzcSomag6H0246LBCAekBqbdVPAiYet5wmo0UDNCtIMz2zqLSlN4mqcJezqP5i0I9kRtZ4+mACagUfz5uDF3PBWKGXAoTTpREkMSFczXD1H9VqHKYOPgB/EujfiHXxMTvChV8T7PoG8u3DTZ9OVzojndFoMGz82WjbBINTYPbonQ6EbjrN5qNJ1RZcLnpLGp3zXp9D10H55GsuoOG6TH+kRvVTHKT4Ip+R5CPmtcLDibEijvt+pUQIDAQAB",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "ui/popup.html",
+    "default_title": "Crossfade",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "options_ui": {
+    "page": "ui/options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["storage", "alarms", "identity", "notifications"],
+  "host_permissions": [
+    "https://api.music.yandex.net/*",
+    "https://oauth.yandex.ru/*",
+    "https://oauth.yandex.com/*",
+    "https://music.yandex.ru/*",
+    "https://music.yandex.com/*",
+    "https://music.yandex.by/*",
+    "https://music.yandex.kz/*",
+    "https://api.spotify.com/*",
+    "https://accounts.spotify.com/*"
+  ]
+}

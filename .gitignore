@@ -1,12 +1,6 @@
+node_modules/
+*.pem
+*.crx
+*.zip
+.DS_Store
 __pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-build/
-dist/
-.pytest_cache/
-.env
-.cache*
-spotify_token.json
-state.json

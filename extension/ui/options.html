@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crossfade — настройки</title>
+  <link rel="stylesheet" href="common.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="page">
+    <header>
+      <img src="../icons/icon48.png" alt="" width="40" height="40">
+      <div>
+        <h1>Crossfade</h1>
+        <p class="muted">Перенос лайкнутых треков между Яндекс Музыкой и Spotify. Расширение только добавляет лайки и никогда их не удаляет.</p>
+      </div>
+    </header>
+
+    <section class="card" id="connect">
+      <h2>Подключение</h2>
+      <div id="auth-error" class="error hidden"></div>
+
+      <div class="service" data-service="yandex">
+        <div class="logo yandex">Я</div>
+        <div class="info">
+          <div class="name">Яндекс Музыка</div>
+          <div class="state">Не подключено</div>
+        </div>
+        <button class="connect primary">Подключить</button>
+        <button class="disconnect hidden">Отключить</button>
+      </div>
+      <details class="manual">
+        <summary class="muted small">Не получается войти? Вставьте токен вручную</summary>
+        <div class="row">
+          <input type="text" id="yandex-token" placeholder="OAuth-токен Яндекс Музыки" autocomplete="off">
+          <button id="save-yandex-token">Сохранить</button>
+        </div>
+      </details>
+
+      <div class="service" data-service="spotify" id="spotify">
+        <div class="logo spotify">S</div>
+        <div class="info">
+          <div class="name">Spotify</div>
+          <div class="state">Не подключено</div>
+        </div>
+        <button class="connect primary">Подключить</button>
+        <button class="disconnect hidden">Отключить</button>
+      </div>
+
+      <div id="spotify-setup" class="setup hidden">
+        <p><b>Один раз нужно создать приложение Spotify</b> — так Spotify разрешает доступ к вашей медиатеке. Это бесплатно и займёт пару минут.</p>
+        <ol>
+          <li>Откройте <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify for Developers</a>, войдите и нажмите <b>Create app</b>.</li>
+          <li>Название и описание — любые. В поле <b>Redirect URIs</b> вставьте адрес и нажмите <b>Add</b>:
+            <div class="row">
+              <code id="redirect-uri"></code>
+              <button id="copy-redirect">Копировать</button>
+            </div>
+          </li>
+          <li>В пункте <b>Which API/SDKs are you planning to use?</b> отметьте <b>Web API</b>, примите условия и сохраните.</li>
+          <li>Скопируйте <b>Client ID</b> со страницы приложения и вставьте сюда:
+            <div class="row">
+              <input type="text" id="client-id" placeholder="Client ID" autocomplete="off" spellcheck="false">
+              <button id="save-client-id" class="primary">Сохранить</button>
+            </div>
+          </li>
+        </ol>
+        <p class="muted small">Пока приложение в режиме разработки, Spotify пускает только тех, кто добавлен в его настройках (вкладка <b>User Management</b>). Если входите не тем аккаунтом, которым создали приложение, — добавьте его туда.</p>
+      </div>
+      <button id="edit-client-id" class="link small hidden">Изменить Client ID Spotify</button>
+    </section>
+
+    <section class="card">
+      <h2>Автоматический перенос</h2>
+      <div class="row spread">
+        <label class="toggle">
+          <input type="checkbox" id="auto">
+          <span class="track"></span>
+          <span>Переносить новые лайки автоматически</span>
+        </label>
+        <select id="interval" aria-label="Как часто">
+          <option value="30">каждые 30 минут</option>
+          <option value="60">каждый час</option>
+          <option value="360">каждые 6 часов</option>
+          <option value="1440">раз в день</option>
+        </select>
+      </div>
+      <p class="muted small">Работает, пока открыт браузер. Направление — то же, что выбрано в окне расширения. О новых перенесённых треках придёт уведомление.</p>
+    </section>
+
+    <section class="card" id="history">
+      <h2>История</h2>
+      <div id="last-run" class="last-run"></div>
+
+      <h3>Не найдено</h3>
+      <p class="muted small">Этих треков нет в каталоге другого сервиса или они называются слишком по-другому. Можно найти их вручную по ссылке или поискать ещё раз позже — каталоги пополняются.</p>
+      <div id="missing"></div>
+      <button id="retry">Поискать ещё раз</button>
+
+      <h3>Недавно добавленные</h3>
+      <ul id="recent" class="tracks"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Сброс</h2>
+      <p class="muted small">Расширение помнит, какие треки уже перенесло, чтобы не искать их повторно. Если сбросить историю, при следующем переносе все треки будут проверены заново. Лайки в сервисах при этом не меняются.</p>
+      <button id="reset" class="danger">Сбросить историю переносов</button>
+    </section>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

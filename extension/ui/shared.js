@@ -1,0 +1,80 @@
+// Общие помощники для окна расширения и страницы настроек.
+
+export const SERVICE_NAMES = { yandex: "Яндекс Музыка", spotify: "Spotify" };
+export const SHORT_NAMES = { yandex: "Яндекс", spotify: "Spotify" };
+
+export async function send(type, data = {}) {
+  const response = await chrome.runtime.sendMessage({ type, ...data });
+  if (!response?.ok) {
+    throw Object.assign(new Error(response?.error || "Неизвестная ошибка"), { code: response?.code });
+  }
+  return response.result;
+}
+
+export async function load() {
+  const local = await chrome.storage.local.get(["auth", "settings", "status", "syncState", "recent"]);
+  const session = await chrome.storage.session.get(["authError", "yandexLoginPending"]);
+  return {
+    auth: local.auth || {},
+    settings: { direction: "yandex->spotify", autoSync: false, intervalMin: 60, ...local.settings },
+    status: local.status || {},
+    syncState: local.syncState || {},
+    recent: local.recent || [],
+    authError: session.authError || "",
+    yandexLoginPending: Boolean(session.yandexLoginPending),
+  };
+}
+
+export function onChange(callback) {
+  chrome.storage.onChanged.addListener(() => callback());
+}
+
+export function formatWhen(iso) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  const now = new Date();
+  const time = date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  if (date.toDateString() === now.toDateString()) return `сегодня в ${time}`;
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return `вчера в ${time}`;
+  return `${date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })} в ${time}`;
+}
+
+export function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (key === "class") node.className = value;
+    else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+    else node.setAttribute(key, value);
+  }
+  node.append(...children.filter((c) => c !== null && c !== undefined && c !== false));
+  return node;
+}
+
+// Карточка с итогами последнего переноса.
+export function lastRunView(lastRun, { onMore } = {}) {
+  const box = el("div");
+  const prefix = lastRun.auto ? "Автосинхронизация" : "Последний перенос";
+  box.append(el("div", { class: "when" }, `${prefix}: ${formatWhen(lastRun.finishedAt)}`));
+  for (const r of lastRun.results || []) {
+    if (!r.liked && !r.alreadyLiked && !r.notFound && !r.errors) {
+      box.append(el("div", { class: "stats" },
+        el("span", {}, `${SHORT_NAMES[r.source]} → ${SHORT_NAMES[r.target]}:`),
+        el("span", { class: "muted" }, "новых лайков нет"),
+      ));
+      continue;
+    }
+    const stats = el("div", { class: "stats" },
+      el("span", {}, `${SHORT_NAMES[r.source]} → ${SHORT_NAMES[r.target]}:`),
+      el("span", { class: "added" }, "добавлено ", el("b", {}, String(r.liked))),
+      el("span", {}, "уже были ", el("b", {}, String(r.alreadyLiked))),
+      r.notFound ? el("span", { class: "missing" }, "не найдено ", el("b", {}, String(r.notFound))) : null,
+    );
+    box.append(stats);
+  }
+  if (lastRun.stopped) box.append(el("div", { class: "muted small" }, "Остановлено вручную — продолжится с того же места."));
+  if (lastRun.error) box.append(el("div", { class: "error" }, lastRun.error));
+  if (onMore) box.append(el("button", { class: "link more", onclick: onMore }, "Подробнее"));
+  return box;
+}

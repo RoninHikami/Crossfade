@@ -1,0 +1,94 @@
+body { background: var(--surface); }
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+header { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 8px; }
+header h1 { margin: 0 0 4px; font-size: 22px; }
+header p { margin: 0; }
+
+.card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.card h2 { margin: 0; font-size: 17px; }
+.card h3 { margin: 12px 0 0; font-size: 14px; }
+.card p { margin: 0; }
+
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.row.spread { justify-content: space-between; margin-top: 0; }
+.row input[type="text"] { flex: 1; min-width: 200px; }
+
+.service .disconnect { font-size: 13px; }
+
+.manual summary { cursor: pointer; }
+.manual .row { margin-top: 8px; }
+
+.setup {
+  border: 1px dashed var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.setup ol { margin: 10px 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; }
+.setup a { color: var(--accent); }
+code {
+  font: 13px ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  word-break: break-all;
+}
+
+.last-run { display: flex; flex-direction: column; gap: 4px; }
+.last-run .when { color: var(--muted); font-size: 13px; }
+.stats { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.stats .added b { color: var(--ok); }
+.stats .missing b { color: var(--warn); }
+
+.tracks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.tracks:empty::before {
+  content: "Пока пусто";
+  display: block;
+  padding: 10px 12px;
+  color: var(--muted);
+}
+.tracks li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.tracks li:first-child { border-top: none; }
+.tracks .title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tracks .meta { color: var(--muted); white-space: nowrap; font-size: 12px; }
+.tracks a { color: var(--accent); white-space: nowrap; font-size: 12px; text-decoration: none; }
+.tracks a:hover { text-decoration: underline; }
+
+.missing-group { display: flex; flex-direction: column; gap: 6px; }
+.missing-group + .missing-group { margin-top: 10px; }
+.missing-group .head { font-size: 13px; font-weight: 600; }
+
+#retry, #reset, #edit-client-id { align-self: flex-start; }

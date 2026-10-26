@@ -1,0 +1,10 @@
+{
+  "name": "crossfade",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Браузерное расширение для переноса лайков между Яндекс Музыкой и Spotify",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  }
+}
