@@ -3,6 +3,7 @@
 import { SPOTIFY_CLIENT_ID, YANDEX_CLIENT_ID } from "../config.js";
 import { YandexService } from "./services/yandex.js";
 import { ZvukService, fetchZvukProfile } from "./services/zvuk.js";
+import { YouTubeService, youtubeSapisid } from "./services/youtube.js";
 
 const SPOTIFY_SCOPES = "user-library-read user-library-modify";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -63,9 +64,6 @@ export async function saveYandexToken(token) {
 // Звук не выдаёт токены сторонним приложениям. Поэтому пользователь входит
 // на zvuk.com как обычно, а расширение берёт токен из профиля сайта.
 
-const ZVUK_LOGIN_TIMEOUT = 15 * 60_000;
-const ZVUK_POLL_INTERVAL = 5_000;
-
 async function saveZvukProfile(profile) {
   // Если сайт не сказал явно, анонимный ли это вход, проверяем доступ к коллекции:
   // анонимному токену она недоступна.
@@ -89,40 +87,8 @@ async function tryZvukFromBrowser() {
   }
 }
 
-async function finishZvukLogin(tabId) {
-  await chrome.storage.session.remove("zvukLoginTab");
-  if (tabId) chrome.tabs.remove(tabId).catch(() => {});
-}
-
-export async function connectZvuk() {
-  if (await tryZvukFromBrowser()) return;
-  const tab = await chrome.tabs.create({ url: "https://zvuk.com/" });
-  await chrome.storage.session.set({ zvukLoginTab: tab.id });
-  waitForZvukLogin(tab.id);
-}
-
-// Ждём, пока пользователь войдёт на открытой вкладке. Сайт Звука может
-// не перезагружать страницу после входа, поэтому проверяем профиль периодически.
-async function waitForZvukLogin(tabId) {
-  const deadline = Date.now() + ZVUK_LOGIN_TIMEOUT;
-  while (Date.now() < deadline) {
-    await sleep(ZVUK_POLL_INTERVAL);
-    const { zvukLoginTab } = await chrome.storage.session.get("zvukLoginTab");
-    if (zvukLoginTab !== tabId) return;
-    const tabOpen = await chrome.tabs.get(tabId).then(() => true, () => false);
-    if (!tabOpen) return finishZvukLogin(null);
-    if (await tryZvukFromBrowser()) return finishZvukLogin(tabId);
-  }
-  await finishZvukLogin(null);
-}
-
-// Запасной путь, если фоновый скрипт успел уснуть: проверяем вход
-// при каждой загрузке страницы во вкладке входа.
-export async function handleZvukTabUpdate(tabId, change, tab) {
-  if (change.status !== "complete" || !(tab?.url || "").startsWith("https://zvuk.com")) return;
-  const { zvukLoginTab } = await chrome.storage.session.get("zvukLoginTab");
-  if (zvukLoginTab !== tabId) return;
-  if (await tryZvukFromBrowser()) await finishZvukLogin(tabId);
+export function connectZvuk() {
+  return connectViaSite("zvuk");
 }
 
 export async function saveZvukToken(token) {
@@ -135,6 +101,74 @@ export async function saveZvukToken(token) {
   }
   if (profile.anonymous) throw new Error("Это токен гостя — войдите на zvuk.com и скопируйте токен заново");
   return saveZvukProfile({ ...profile, token });
+}
+
+// --- YouTube Music ---------------------------------------------------------
+// Токенов нет: запросы подписываются cookie вашей сессии в Google (как на самом
+// сайте), поэтому сохраняем только имя аккаунта.
+
+async function tryYouTubeFromBrowser() {
+  try {
+    if (!(await youtubeSapisid())) return false;
+    const name = await new YouTubeService().accountName();
+    await setAuth("youtube", { name });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function connectYouTube() {
+  return connectViaSite("youtube");
+}
+
+// --- Вход через сайт сервиса (Звук, YouTube Music) --------------------------
+// Если пользователь уже вошёл на сайт в этом браузере, подключаемся сразу.
+// Иначе открываем сайт и ждём входа: сайт может не перезагружать страницу
+// после входа, поэтому проверяем периодически.
+
+const SITE_LOGINS = {
+  zvuk: { url: "https://zvuk.com/", tryConnect: tryZvukFromBrowser },
+  youtube: { url: "https://music.youtube.com/", tryConnect: tryYouTubeFromBrowser },
+};
+const SITE_LOGIN_TIMEOUT = 15 * 60_000;
+const SITE_POLL_INTERVAL = 5_000;
+
+async function connectViaSite(service) {
+  const site = SITE_LOGINS[service];
+  if (await site.tryConnect()) return;
+  const tab = await chrome.tabs.create({ url: site.url });
+  await chrome.storage.session.set({ siteLogin: { service, tabId: tab.id } });
+  waitForSiteLogin(service, tab.id);
+}
+
+async function finishSiteLogin(tabId) {
+  await chrome.storage.session.remove("siteLogin");
+  if (tabId) chrome.tabs.remove(tabId).catch(() => {});
+}
+
+async function waitForSiteLogin(service, tabId) {
+  const deadline = Date.now() + SITE_LOGIN_TIMEOUT;
+  while (Date.now() < deadline) {
+    await sleep(SITE_POLL_INTERVAL);
+    const { siteLogin } = await chrome.storage.session.get("siteLogin");
+    if (siteLogin?.tabId !== tabId) return;
+    const tabOpen = await chrome.tabs.get(tabId).then(() => true, () => false);
+    if (!tabOpen) return finishSiteLogin(null);
+    if (await SITE_LOGINS[service].tryConnect()) return finishSiteLogin(tabId);
+  }
+  await finishSiteLogin(null);
+}
+
+// Запасной путь, если фоновый скрипт успел уснуть: проверяем вход
+// при каждой загрузке страницы во вкладке входа.
+export async function handleSiteTabUpdate(tabId, change, tab) {
+  if (change.status !== "complete") return;
+  const { siteLogin } = await chrome.storage.session.get("siteLogin");
+  if (siteLogin?.tabId !== tabId) return;
+  const site = SITE_LOGINS[siteLogin.service];
+  if (!(tab?.url || "").startsWith(site.url)) return;
+  if (await site.tryConnect()) await finishSiteLogin(tabId);
 }
 
 // --- Spotify (Authorization Code + PKCE, без секрета) -----------------------

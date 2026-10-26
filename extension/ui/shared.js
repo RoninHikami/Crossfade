@@ -14,7 +14,7 @@ export async function send(type, data = {}) {
 
 export async function load() {
   const local = await chrome.storage.local.get(["auth", "settings", "status", "syncState", "recent"]);
-  const session = await chrome.storage.session.get(["authError", "yandexLoginPending", "zvukLoginTab"]);
+  const session = await chrome.storage.session.get(["authError", "yandexLoginPending", "siteLogin"]);
   return {
     auth: local.auth || {},
     settings: normalizeSettings(local.settings),
@@ -24,7 +24,8 @@ export async function load() {
     authError: session.authError || "",
     loginPending: {
       yandex: Boolean(session.yandexLoginPending),
-      zvuk: Boolean(session.zvukLoginTab),
+      zvuk: session.siteLogin?.service === "zvuk",
+      youtube: session.siteLogin?.service === "youtube",
     },
   };
 }
@@ -32,6 +33,7 @@ export async function load() {
 export const LOGIN_HINTS = {
   yandex: "Войдите в открывшейся вкладке",
   zvuk: "Войдите на zvuk.com в открывшейся вкладке",
+  youtube: "Войдите на music.youtube.com в открывшейся вкладке",
 };
 
 export function onChange(callback) {
@@ -65,7 +67,10 @@ export function el(tag, attrs = {}, ...children) {
 export function lastRunView(lastRun, { onMore } = {}) {
   const box = el("div");
   const prefix = lastRun.auto ? "Автосинхронизация" : "Последний перенос";
-  box.append(el("div", { class: "when" }, `${prefix}: ${formatWhen(lastRun.finishedAt)}`));
+  box.append(el("div", { class: "when" },
+    el("span", {}, `${prefix}: ${formatWhen(lastRun.finishedAt)}`),
+    onMore ? el("button", { class: "link more", onclick: onMore }, "Подробнее") : null,
+  ));
   for (const r of lastRun.results || []) {
     if (!r.liked && !r.alreadyLiked && !r.notFound && !r.errors) {
       box.append(el("div", { class: "stats" },
@@ -84,6 +89,5 @@ export function lastRunView(lastRun, { onMore } = {}) {
   }
   if (lastRun.stopped) box.append(el("div", { class: "muted small" }, "Остановлено вручную — продолжится с того же места."));
   if (lastRun.error) box.append(el("div", { class: "error" }, lastRun.error));
-  if (onMore) box.append(el("button", { class: "link more", onclick: onMore }, "Подробнее"));
   return box;
 }

@@ -1,14 +1,14 @@
 // Список поддерживаемых сервисов и настройки направления переноса.
 // Используется и фоновой частью, и интерфейсом.
 
-export const SERVICES = ["yandex", "spotify", "zvuk"];
+export const SERVICES = ["yandex", "spotify", "zvuk", "youtube"];
 
-export const SERVICE_NAMES = { yandex: "Яндекс Музыка", spotify: "Spotify", zvuk: "Звук" };
-export const SHORT_NAMES = { yandex: "Яндекс", spotify: "Spotify", zvuk: "Звук" };
+export const SERVICE_NAMES = { yandex: "Яндекс Музыка", spotify: "Spotify", zvuk: "Звук", youtube: "YouTube Music" };
+export const SHORT_NAMES = { yandex: "Яндекс", spotify: "Spotify", zvuk: "Звук", youtube: "YouTube" };
 // «Подключите …»
-export const ACCUSATIVE_NAMES = { yandex: "Яндекс Музыку", spotify: "Spotify", zvuk: "Звук" };
+export const ACCUSATIVE_NAMES = { yandex: "Яндекс Музыку", spotify: "Spotify", zvuk: "Звук", youtube: "YouTube Music" };
 // «Найти в …»
-export const LOCATIVE_NAMES = { yandex: "Яндексе", spotify: "Spotify", zvuk: "Звуке" };
+export const LOCATIVE_NAMES = { yandex: "Яндексе", spotify: "Spotify", zvuk: "Звуке", youtube: "YouTube Music" };
 
 export const DEFAULT_SETTINGS = {
   source: "yandex",

@@ -1,4 +1,4 @@
-body { width: 360px; }
+body { width: 380px; }
 
 header {
   display: flex;
@@ -19,10 +19,10 @@ button.icon {
 button.icon:hover { color: var(--text); }
 
 main {
-  padding: 14px 16px 12px;
+  padding: 12px 16px 10px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 section { display: flex; flex-direction: column; gap: 8px; }
 .label { font-size: 12px; color: var(--muted); }
@@ -36,9 +36,12 @@ section { display: flex; flex-direction: column; gap: 8px; }
 .route select { width: 100%; font-weight: 600; }
 .toggle.small { font-size: 13px; }
 
-.services { gap: 6px; }
-.services .service { padding: 8px 12px; }
-.services .logo { width: 28px; height: 28px; font-size: 13px; }
+.services { gap: 4px; }
+.services .service { padding: 6px 10px; border-radius: 10px; }
+.services .logo { width: 26px; height: 26px; font-size: 12px; }
+.services .name { font-size: 13px; line-height: 1.3; }
+.services .state { line-height: 1.3; }
+.services .connect { padding: 4px 10px; font-size: 13px; }
 
 button.big { padding: 12px; font-size: 15px; border-radius: 10px; }
 .hint { margin: 0; text-align: center; }
@@ -50,12 +53,19 @@ button.big { padding: 12px; font-size: 15px; border-radius: 10px; }
   padding: 10px 12px;
   font-size: 13px;
 }
-.last-run .when { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+.last-run .when {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
 .stats { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .stats b { font-variant-numeric: tabular-nums; }
 .stats .added b { color: var(--ok); }
 .stats .missing b { color: var(--warn); }
-.last-run .more { margin-top: 6px; font-size: 12px; }
+.last-run .more { font-size: 12px; }
 
 .progress-head { display: flex; justify-content: space-between; gap: 8px; font-weight: 500; }
 .bar {

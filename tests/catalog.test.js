@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { allPairs, directionPairs, normalizeSettings } from "../extension/lib/catalog.js";
+import { SERVICES, allPairs, directionPairs, normalizeSettings } from "../extension/lib/catalog.js";
 
 test("старые настройки направления переводятся в новые", () => {
   assert.deepEqual(
@@ -21,5 +21,5 @@ test("источник и цель не совпадают", () => {
 
 test("пары направлений", () => {
   assert.deepEqual(directionPairs({ source: "zvuk", target: "spotify", bothWays: true }), [["zvuk", "spotify"], ["spotify", "zvuk"]]);
-  assert.equal(allPairs().length, 6);
+  assert.equal(allPairs().length, SERVICES.length * (SERVICES.length - 1));
 });

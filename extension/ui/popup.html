@@ -41,6 +41,14 @@
         </div>
         <button class="connect">Подключить</button>
       </div>
+      <div class="service" data-service="youtube">
+        <div class="logo youtube">▶</div>
+        <div class="info">
+          <div class="name">YouTube Music</div>
+          <div class="state">Не подключено</div>
+        </div>
+        <button class="connect">Подключить</button>
+      </div>
     </section>
 
     <div id="auth-error" class="error hidden"></div>
@@ -81,7 +89,7 @@
       <label class="toggle">
         <input type="checkbox" id="auto">
         <span class="track"></span>
-        <span>Автоперенос новых лайков</span>
+        <span>Автоперенос</span>
       </label>
       <select id="interval" aria-label="Как часто">
         <option value="30">каждые 30 минут</option>
@@ -91,7 +99,7 @@
       </select>
     </section>
 
-    <p class="footnote muted small">Существующие лайки никогда не удаляются — только добавляются новые.</p>
+    <p class="footnote muted small">Лайки только добавляются — ничего не удаляется.</p>
   </main>
 
   <script type="module" src="popup.js"></script>

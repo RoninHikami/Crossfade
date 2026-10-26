@@ -28,6 +28,20 @@ const RULES = [
     },
     condition: { requestDomains: ["zvuk.com"] },
   },
+  {
+    // YouTube Music проверяет, что запрос пришёл с music.youtube.com: на этот
+    // адрес завязана и подпись запроса (SAPISIDHASH).
+    id: 3,
+    priority: 1,
+    action: {
+      type: "modifyHeaders",
+      requestHeaders: [
+        { header: "origin", operation: "set", value: "https://music.youtube.com" },
+        { header: "referer", operation: "set", value: "https://music.youtube.com/" },
+      ],
+    },
+    condition: { requestDomains: ["music.youtube.com"] },
+  },
 ];
 
 let installed = null;

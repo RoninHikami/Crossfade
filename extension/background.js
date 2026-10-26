@@ -2,14 +2,15 @@
 // автоматическая синхронизация по расписанию.
 
 import {
-  connectSpotify, connectYandex, connectZvuk, disconnect, getAuth, handleYandexTabUpdate,
-  handleZvukTabUpdate, saveYandexToken, saveZvukToken, spotifyAccessToken, spotifyClientId,
-  spotifyRedirectUri,
+  connectSpotify, connectYandex, connectYouTube, connectZvuk, disconnect, getAuth,
+  handleSiteTabUpdate, handleYandexTabUpdate, saveYandexToken, saveZvukToken, spotifyAccessToken,
+  spotifyClientId, spotifyRedirectUri,
 } from "./lib/auth.js";
 import { SPOTIFY_CLIENT_ID } from "./config.js";
 import { ACCUSATIVE_NAMES, directionPairs, normalizeSettings } from "./lib/catalog.js";
 import { SpotifyService } from "./lib/services/spotify.js";
 import { YandexService } from "./lib/services/yandex.js";
+import { YouTubeService } from "./lib/services/youtube.js";
 import { ZvukService } from "./lib/services/zvuk.js";
 import { displayTrack } from "./lib/matching.js";
 import { syncLikes } from "./lib/sync.js";
@@ -46,6 +47,7 @@ async function createService(name) {
   if (!auth[name]) throw new Error(`Подключите ${ACCUSATIVE_NAMES[name]}`);
   if (name === "yandex") return new YandexService(auth.yandex);
   if (name === "zvuk") return new ZvukService(auth.zvuk);
+  if (name === "youtube") return new YouTubeService();
   return new SpotifyService({ getToken: spotifyAccessToken });
 }
 
@@ -171,6 +173,7 @@ const handlers = {
     await chrome.storage.session.remove("authError");
     if (service === "yandex") return connectYandex();
     if (service === "zvuk") return connectZvuk();
+    if (service === "youtube") return connectYouTube();
     const release = keepAlive();
     try {
       return await connectSpotify();
@@ -224,7 +227,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   handleYandexTabUpdate(tabId, change.url || tab.url);
-  handleZvukTabUpdate(tabId, change, tab);
+  handleSiteTabUpdate(tabId, change, tab);
 });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
