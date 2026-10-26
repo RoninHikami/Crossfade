@@ -1,4 +1,6 @@
-import { SERVICE_NAMES, lastRunView, load, onChange, send } from "./shared.js";
+import {
+  ACCUSATIVE_NAMES, LOGIN_HINTS, SERVICES, SERVICE_NAMES, SHORT_NAMES, lastRunView, load, onChange, send,
+} from "./shared.js";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -18,8 +20,7 @@ function renderServices(data) {
       state.textContent = `✓ ${account.name}`;
       button.classList.add("hidden");
     } else {
-      const waiting = service === "yandex" && data.yandexLoginPending;
-      state.textContent = waiting ? "Войдите в открывшейся вкладке" : "Не подключено";
+      state.textContent = data.loginPending[service] ? LOGIN_HINTS[service] : "Не подключено";
       button.classList.remove("hidden");
     }
   }
@@ -27,10 +28,18 @@ function renderServices(data) {
   $("#auth-error").classList.toggle("hidden", !data.authError);
 }
 
-function renderDirection(direction) {
-  for (const button of document.querySelectorAll("#direction button")) {
-    button.setAttribute("aria-checked", String(button.dataset.value === direction));
+function fillServiceSelect(select, value) {
+  if (!select.options.length) {
+    select.append(...SERVICES.map((s) => new Option(SHORT_NAMES[s], s)));
   }
+  select.value = value;
+}
+
+function renderRoute(settings, running) {
+  fillServiceSelect($("#source"), settings.source);
+  fillServiceSelect($("#target"), settings.target);
+  $("#both-ways").checked = settings.bothWays;
+  for (const control of [$("#source"), $("#target"), $("#swap"), $("#both-ways")]) control.disabled = running;
 }
 
 function renderProgress(status) {
@@ -38,7 +47,7 @@ function renderProgress(status) {
   const steps = status.steps > 1 ? ` (шаг ${status.step} из ${status.steps})` : "";
   const bar = $(".bar");
   if (status.phase === "matching" && status.todo) {
-    $("#phase").textContent = `Ищу треки в ${target}${steps}`;
+    $("#phase").textContent = `Ищу треки: ${target}${steps}`;
     $("#counter").textContent = `${status.processed} из ${status.todo}`;
     bar.classList.remove("indeterminate");
     $("#bar-fill").style.width = `${Math.round((status.processed / status.todo) * 100)}%`;
@@ -54,33 +63,38 @@ function renderProgress(status) {
 }
 
 function render(data) {
+  const { settings, status } = data;
   renderServices(data);
-  renderDirection(data.settings.direction);
 
-  const running = Boolean(data.status.running);
+  const running = Boolean(status.running);
+  renderRoute(settings, running);
   $("#idle").classList.toggle("hidden", running);
   $("#running").classList.toggle("hidden", !running);
-  for (const button of document.querySelectorAll("#direction button")) button.disabled = running;
 
   if (running) {
-    renderProgress(data.status);
+    renderProgress(status);
   } else {
-    const ready = data.auth.yandex && data.auth.spotify;
-    $("#start").disabled = !ready;
-    $("#start-hint").textContent = ready ? "" : "Сначала подключите оба сервиса";
-    const lastRun = data.status.lastRun;
+    const missing = [settings.source, settings.target].filter((s) => !data.auth[s]);
+    $("#start").disabled = missing.length > 0;
+    $("#start-hint").textContent = missing.length
+      ? `Сначала подключите ${missing.map((s) => ACCUSATIVE_NAMES[s]).join(" и ")}`
+      : "";
+    const lastRun = status.lastRun;
     const box = $("#last-run");
     box.classList.toggle("hidden", !lastRun);
     box.replaceChildren(lastRun ? lastRunView(lastRun, { onMore: () => openSettings("#history") }) : "");
   }
 
-  $("#auto").checked = data.settings.autoSync;
-  $("#interval").value = String(data.settings.intervalMin);
-  $("#interval").disabled = !data.settings.autoSync;
+  $("#auto").checked = settings.autoSync;
+  $("#interval").value = String(settings.intervalMin);
+  $("#interval").disabled = !settings.autoSync;
 }
 
+let current = null;
+
 async function refresh() {
-  render(await load());
+  current = await load();
+  render(current);
 }
 
 for (const row of document.querySelectorAll(".service")) {
@@ -98,9 +112,22 @@ for (const row of document.querySelectorAll(".service")) {
   });
 }
 
-for (const button of document.querySelectorAll("#direction button")) {
-  button.addEventListener("click", () => send("settings", { patch: { direction: button.dataset.value } }));
+// Если выбрать в «Откуда» тот же сервис, что и в «Куда», меняем их местами.
+function setRoute(source, target) {
+  send("settings", { patch: { source, target } });
 }
+$("#source").addEventListener("change", (e) => {
+  const { source, target } = current.settings;
+  const value = e.target.value;
+  setRoute(value, value === target ? source : target);
+});
+$("#target").addEventListener("change", (e) => {
+  const { source, target } = current.settings;
+  const value = e.target.value;
+  setRoute(value === source ? target : source, value);
+});
+$("#swap").addEventListener("click", () => setRoute(current.settings.target, current.settings.source));
+$("#both-ways").addEventListener("change", (e) => send("settings", { patch: { bothWays: e.target.checked } }));
 
 $("#start").addEventListener("click", () => send("start"));
 $("#stop").addEventListener("click", () => send("stop"));

@@ -1,4 +1,4 @@
-import { SHORT_NAMES, el, formatWhen, lastRunView, load, onChange, send } from "./shared.js";
+import { LOCATIVE_NAMES, LOGIN_HINTS, SHORT_NAMES, allPairs, el, formatWhen, lastRunView, load, onChange, send } from "./shared.js";
 import { notFoundList } from "../lib/sync.js";
 
 const $ = (selector) => document.querySelector(selector);
@@ -13,7 +13,7 @@ function renderServices(data) {
     const state = row.querySelector(".state");
     state.classList.toggle("ok", Boolean(account));
     if (account) state.textContent = `✓ Подключено: ${account.name}`;
-    else if (service === "yandex" && data.yandexLoginPending) state.textContent = "Войдите в открывшейся вкладке";
+    else if (data.loginPending[service]) state.textContent = LOGIN_HINTS[service];
     else state.textContent = "Не подключено";
     row.querySelector(".connect").classList.toggle("hidden", Boolean(account));
     row.querySelector(".disconnect").classList.toggle("hidden", !account);
@@ -31,7 +31,7 @@ function renderMissing(syncState) {
   const box = $("#missing");
   box.replaceChildren();
   let total = 0;
-  for (const [source, target] of [["yandex", "spotify"], ["spotify", "yandex"]]) {
+  for (const [source, target] of allPairs()) {
     const list = notFoundList(structuredClone(syncState), source, target);
     if (!list.length) continue;
     total += list.length;
@@ -40,7 +40,7 @@ function renderMissing(syncState) {
       el("ul", { class: "tracks" }, ...list.map((item) => el("li", {},
         el("span", { class: "title", title: item.title }, item.title),
         item.searchUrl
-          ? el("a", { href: item.searchUrl, target: "_blank", rel: "noopener" }, `Найти в ${SHORT_NAMES[target]}`)
+          ? el("a", { href: item.searchUrl, target: "_blank", rel: "noopener" }, `Найти в ${LOCATIVE_NAMES[target]}`)
           : null,
       ))),
     ));
@@ -63,7 +63,8 @@ function render(data) {
       : lastRun ? lastRunView(lastRun) : el("div", { class: "muted" }, "Перенос ещё не запускался."),
   );
   renderMissing(data.syncState);
-  $("#retry").disabled = Boolean(data.status.running) || !(data.auth.yandex && data.auth.spotify);
+  const { source, target } = data.settings;
+  $("#retry").disabled = Boolean(data.status.running) || !(data.auth[source] && data.auth[target]);
 
   $("#recent").replaceChildren(...data.recent.map((item) => el("li", {},
     el("span", { class: "title", title: item.title }, item.title),
@@ -103,6 +104,18 @@ $("#save-yandex-token").addEventListener("click", async () => {
     $(".manual").open = false;
   } catch (error) {
     await chrome.storage.session.set({ authError: `Яндекс Музыка: ${error.message}` });
+  }
+});
+
+$("#save-zvuk-token").addEventListener("click", async () => {
+  const token = $("#zvuk-token").value.trim().replace(/^"|"$/g, "");
+  if (!token) return;
+  try {
+    await send("zvukToken", { token });
+    $("#zvuk-token").value = "";
+    $("#zvuk-manual").open = false;
+  } catch (error) {
+    await chrome.storage.session.set({ authError: `Звук: ${error.message}` });
   }
 });
 

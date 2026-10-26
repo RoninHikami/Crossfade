@@ -2,8 +2,10 @@
 
 import { SPOTIFY_CLIENT_ID, YANDEX_CLIENT_ID } from "../config.js";
 import { YandexService } from "./services/yandex.js";
+import { ZvukService, fetchZvukProfile } from "./services/zvuk.js";
 
 const SPOTIFY_SCOPES = "user-library-read user-library-modify";
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function getAuth() {
   return (await chrome.storage.local.get("auth")).auth || {};
@@ -55,6 +57,84 @@ export async function saveYandexToken(token) {
   const account = await YandexService.account(token.trim());
   await setAuth("yandex", { token: token.trim(), uid: account.uid, name: account.name });
   return account.name;
+}
+
+// --- Звук -------------------------------------------------------------------
+// Звук не выдаёт токены сторонним приложениям. Поэтому пользователь входит
+// на zvuk.com как обычно, а расширение берёт токен из профиля сайта.
+
+const ZVUK_LOGIN_TIMEOUT = 15 * 60_000;
+const ZVUK_POLL_INTERVAL = 5_000;
+
+async function saveZvukProfile(profile) {
+  // Если сайт не сказал явно, анонимный ли это вход, проверяем доступ к коллекции:
+  // анонимному токену она недоступна.
+  if (profile.anonymous === null) {
+    await new ZvukService({ token: profile.token }).call("query { collection { tracks { id } } }");
+  }
+  await setAuth("zvuk", { token: profile.token, name: profile.name });
+  return profile.name;
+}
+
+// Пробует подключиться по cookies браузера. Возвращает true, если пользователь
+// уже вошёл на zvuk.com.
+async function tryZvukFromBrowser() {
+  try {
+    const profile = await fetchZvukProfile();
+    if (profile.anonymous) return false;
+    await saveZvukProfile(profile);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function finishZvukLogin(tabId) {
+  await chrome.storage.session.remove("zvukLoginTab");
+  if (tabId) chrome.tabs.remove(tabId).catch(() => {});
+}
+
+export async function connectZvuk() {
+  if (await tryZvukFromBrowser()) return;
+  const tab = await chrome.tabs.create({ url: "https://zvuk.com/" });
+  await chrome.storage.session.set({ zvukLoginTab: tab.id });
+  waitForZvukLogin(tab.id);
+}
+
+// Ждём, пока пользователь войдёт на открытой вкладке. Сайт Звука может
+// не перезагружать страницу после входа, поэтому проверяем профиль периодически.
+async function waitForZvukLogin(tabId) {
+  const deadline = Date.now() + ZVUK_LOGIN_TIMEOUT;
+  while (Date.now() < deadline) {
+    await sleep(ZVUK_POLL_INTERVAL);
+    const { zvukLoginTab } = await chrome.storage.session.get("zvukLoginTab");
+    if (zvukLoginTab !== tabId) return;
+    const tabOpen = await chrome.tabs.get(tabId).then(() => true, () => false);
+    if (!tabOpen) return finishZvukLogin(null);
+    if (await tryZvukFromBrowser()) return finishZvukLogin(tabId);
+  }
+  await finishZvukLogin(null);
+}
+
+// Запасной путь, если фоновый скрипт успел уснуть: проверяем вход
+// при каждой загрузке страницы во вкладке входа.
+export async function handleZvukTabUpdate(tabId, change, tab) {
+  if (change.status !== "complete" || !(tab?.url || "").startsWith("https://zvuk.com")) return;
+  const { zvukLoginTab } = await chrome.storage.session.get("zvukLoginTab");
+  if (zvukLoginTab !== tabId) return;
+  if (await tryZvukFromBrowser()) await finishZvukLogin(tabId);
+}
+
+export async function saveZvukToken(token) {
+  token = token.trim();
+  let profile;
+  try {
+    profile = await fetchZvukProfile(token);
+  } catch {
+    profile = { token, anonymous: null, name: "Звук" };
+  }
+  if (profile.anonymous) throw new Error("Это токен гостя — войдите на zvuk.com и скопируйте токен заново");
+  return saveZvukProfile({ ...profile, token });
 }
 
 // --- Spotify (Authorization Code + PKCE, без секрета) -----------------------

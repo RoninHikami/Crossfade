@@ -1,7 +1,8 @@
 // Общие помощники для окна расширения и страницы настроек.
 
-export const SERVICE_NAMES = { yandex: "Яндекс Музыка", spotify: "Spotify" };
-export const SHORT_NAMES = { yandex: "Яндекс", spotify: "Spotify" };
+import { SHORT_NAMES, normalizeSettings } from "../lib/catalog.js";
+
+export { ACCUSATIVE_NAMES, LOCATIVE_NAMES, SERVICES, SERVICE_NAMES, SHORT_NAMES, allPairs } from "../lib/catalog.js";
 
 export async function send(type, data = {}) {
   const response = await chrome.runtime.sendMessage({ type, ...data });
@@ -13,17 +14,25 @@ export async function send(type, data = {}) {
 
 export async function load() {
   const local = await chrome.storage.local.get(["auth", "settings", "status", "syncState", "recent"]);
-  const session = await chrome.storage.session.get(["authError", "yandexLoginPending"]);
+  const session = await chrome.storage.session.get(["authError", "yandexLoginPending", "zvukLoginTab"]);
   return {
     auth: local.auth || {},
-    settings: { direction: "yandex->spotify", autoSync: false, intervalMin: 60, ...local.settings },
+    settings: normalizeSettings(local.settings),
     status: local.status || {},
     syncState: local.syncState || {},
     recent: local.recent || [],
     authError: session.authError || "",
-    yandexLoginPending: Boolean(session.yandexLoginPending),
+    loginPending: {
+      yandex: Boolean(session.yandexLoginPending),
+      zvuk: Boolean(session.zvukLoginTab),
+    },
   };
 }
+
+export const LOGIN_HINTS = {
+  yandex: "Войдите в открывшейся вкладке",
+  zvuk: "Войдите на zvuk.com в открывшейся вкладке",
+};
 
 export function onChange(callback) {
   chrome.storage.onChanged.addListener(() => callback());

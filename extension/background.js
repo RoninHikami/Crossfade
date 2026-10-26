@@ -2,25 +2,27 @@
 // автоматическая синхронизация по расписанию.
 
 import {
-  connectSpotify, connectYandex, disconnect, getAuth, handleYandexTabUpdate,
-  saveYandexToken, spotifyAccessToken, spotifyClientId, spotifyRedirectUri,
+  connectSpotify, connectYandex, connectZvuk, disconnect, getAuth, handleYandexTabUpdate,
+  handleZvukTabUpdate, saveYandexToken, saveZvukToken, spotifyAccessToken, spotifyClientId,
+  spotifyRedirectUri,
 } from "./lib/auth.js";
 import { SPOTIFY_CLIENT_ID } from "./config.js";
+import { ACCUSATIVE_NAMES, directionPairs, normalizeSettings } from "./lib/catalog.js";
 import { SpotifyService } from "./lib/services/spotify.js";
 import { YandexService } from "./lib/services/yandex.js";
+import { ZvukService } from "./lib/services/zvuk.js";
 import { displayTrack } from "./lib/matching.js";
 import { syncLikes } from "./lib/sync.js";
 
 const AUTO_ALARM = "auto-sync";
 const RECENT_LIMIT = 200;
-const DEFAULT_SETTINGS = { direction: "yandex->spotify", autoSync: false, intervalMin: 60 };
 
 let job = null;
 let stopRequested = false;
 
 async function getSettings() {
   const { settings } = await chrome.storage.local.get("settings");
-  return { ...DEFAULT_SETTINGS, ...settings };
+  return normalizeSettings(settings);
 }
 
 async function getStatus() {
@@ -39,18 +41,11 @@ async function setStatus(patch) {
   return statusWrite;
 }
 
-function directions(direction) {
-  if (direction === "both") return [["yandex", "spotify"], ["spotify", "yandex"]];
-  return [direction.split("->")];
-}
-
 async function createService(name) {
   const auth = await getAuth();
-  if (name === "yandex") {
-    if (!auth.yandex) throw new Error("Подключите Яндекс Музыку");
-    return new YandexService(auth.yandex);
-  }
-  if (!auth.spotify) throw new Error("Подключите Spotify");
+  if (!auth[name]) throw new Error(`Подключите ${ACCUSATIVE_NAMES[name]}`);
+  if (name === "yandex") return new YandexService(auth.yandex);
+  if (name === "zvuk") return new ZvukService(auth.zvuk);
   return new SpotifyService({ getToken: spotifyAccessToken });
 }
 
@@ -100,7 +95,7 @@ async function runSync({ auto = false, retryMissing = false } = {}) {
   job = (async () => {
     const release = keepAlive();
     const settings = await getSettings();
-    const pairs = directions(settings.direction);
+    const pairs = directionPairs(settings);
     const results = [];
     let error = null;
     await setStatus({
@@ -175,6 +170,7 @@ const handlers = {
   async connect({ service }) {
     await chrome.storage.session.remove("authError");
     if (service === "yandex") return connectYandex();
+    if (service === "zvuk") return connectZvuk();
     const release = keepAlive();
     try {
       return await connectSpotify();
@@ -195,6 +191,9 @@ const handlers = {
   async yandexToken({ token }) {
     return saveYandexToken(token);
   },
+  async zvukToken({ token }) {
+    return saveZvukToken(token);
+  },
   async start({ retryMissing }) {
     runSync({ retryMissing });
   },
@@ -203,7 +202,7 @@ const handlers = {
     if (!job) await setStatus({ running: false, phase: "idle" });
   },
   async settings({ patch }) {
-    const settings = { ...(await getSettings()), ...patch };
+    const settings = normalizeSettings({ ...(await getSettings()), ...patch });
     await chrome.storage.local.set({ settings });
     await scheduleAutoSync();
     return settings;
@@ -225,12 +224,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   handleYandexTabUpdate(tabId, change.url || tab.url);
+  handleZvukTabUpdate(tabId, change, tab);
 });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== AUTO_ALARM) return;
-  const auth = await getAuth();
-  if (auth.yandex && auth.spotify) runSync({ auto: true });
+  const [auth, settings] = await Promise.all([getAuth(), getSettings()]);
+  if (auth[settings.source] && auth[settings.target]) runSync({ auto: true });
 });
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {

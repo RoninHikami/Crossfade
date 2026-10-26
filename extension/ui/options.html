@@ -13,7 +13,7 @@
       <img src="../icons/icon48.png" alt="" width="40" height="40">
       <div>
         <h1>Crossfade</h1>
-        <p class="muted">Перенос лайкнутых треков между Яндекс Музыкой и Spotify. Расширение только добавляет лайки и никогда их не удаляет.</p>
+        <p class="muted">Перенос лайкнутых треков между Яндекс Музыкой, Spotify и Звуком. Расширение только добавляет лайки и никогда их не удаляет.</p>
       </div>
     </header>
 
@@ -70,6 +70,25 @@
         <p class="muted small">Пока приложение в режиме разработки, Spotify пускает только тех, кто добавлен в его настройках (вкладка <b>User Management</b>). Если входите не тем аккаунтом, которым создали приложение, — добавьте его туда.</p>
       </div>
       <button id="edit-client-id" class="link small hidden">Изменить Client ID Spotify</button>
+
+      <div class="service" data-service="zvuk">
+        <div class="logo zvuk">З</div>
+        <div class="info">
+          <div class="name">Звук</div>
+          <div class="state">Не подключено</div>
+        </div>
+        <button class="connect primary">Подключить</button>
+        <button class="disconnect hidden">Отключить</button>
+      </div>
+      <p class="muted small">Если вы уже вошли на zvuk.com в этом браузере, Звук подключится сразу. Если нет — откроется сайт: войдите, и вкладка закроется сама.</p>
+      <details class="manual" id="zvuk-manual">
+        <summary class="muted small">Не получается войти? Вставьте токен вручную</summary>
+        <p class="muted small">Войдите на <a href="https://zvuk.com" target="_blank" rel="noopener">zvuk.com</a>, затем откройте <a href="https://zvuk.com/api/tiny/profile" target="_blank" rel="noopener">zvuk.com/api/tiny/profile</a> и скопируйте значение поля <code>"token"</code> — без кавычек.</p>
+        <div class="row">
+          <input type="text" id="zvuk-token" placeholder="Токен Звука" autocomplete="off" spellcheck="false">
+          <button id="save-zvuk-token">Сохранить</button>
+        </div>
+      </details>
     </section>
 
     <section class="card">

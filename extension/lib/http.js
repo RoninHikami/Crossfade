@@ -28,6 +28,12 @@ export async function request(url, init = {}, { service = "", retries = 4 } = {}
     if (response.status === 401) {
       throw new ApiError(`${service}: вход устарел, подключите сервис заново`, { status: 401, fatal: true });
     }
+    if (response.status === 418) {
+      // Так отвечает защита от ботов (например, у Звука) — повторять бесполезно.
+      throw new ApiError(`${service}: запрос заблокирован защитой от ботов, попробуйте позже`, {
+        status: 418, fatal: true,
+      });
+    }
     const retryable = response.status === 429 || response.status >= 500;
     if (!retryable || attempt >= retries) {
       const body = (await response.text().catch(() => "")).trim();
