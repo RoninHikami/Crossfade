@@ -1,6 +1,7 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { ZvukService, fetchZvukProfile } from "../extension/lib/services/zvuk.js";
+import { findMatch } from "../extension/lib/sync.js";
 
 const realFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = realFetch; });
@@ -49,10 +50,10 @@ test("поиск и лайк по одному треку", async () => {
   });
   const zvuk = new ZvukService({ token: "tok" });
 
-  const found = await zvuk.search({ title: "Song (Remastered)", artists: ["Artist"] });
-  await zvuk.like(found);
+  const { match } = await findMatch(zvuk, { title: "Song (Remastered)", artists: ["Artist"], durationMs: 200_000 });
+  await zvuk.like([match]);
 
-  assert.equal(found[0].id, "7");
+  assert.equal(match.id, "7");
   assert.equal(calls[0].body.variables.query, "Artist song");
   assert.deepEqual(calls[1].body.variables, { id: "7", type: "track" });
 });

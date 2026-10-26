@@ -57,19 +57,20 @@ export class SpotifyService {
     return (result?.tracks?.items || []).filter(Boolean).map((item) => toTrack(item));
   }
 
-  async search(track) {
+  // Запросы от точных к общим; поиск останавливается на первом удачном.
+  searchQueries(track) {
     const title = baseTitle(track.title);
-    const artist = track.artists[0] || "";
-    const candidates = [];
-    if (track.isrc) candidates.push(...(await this.searchText(`isrc:${track.isrc}`)));
-    candidates.push(...(await this.searchText(`track:"${title}" artist:"${artist}"`)));
-    if (!candidates.length) candidates.push(...(await this.searchText(`${artist} ${title}`)));
-    const latin = transliterate(`${artist} ${title}`);
-    if (!candidates.length && latin !== `${artist} ${title}`.toLowerCase()) {
+    const [artist = "", second] = track.artists;
+    const unquote = (text) => text.replaceAll('"', "");
+    return [
+      track.isrc && `isrc:${track.isrc}`,
+      `${artist} ${title}`,
+      `track:"${unquote(title)}" artist:"${unquote(artist)}"`,
+      second && `${second} ${title}`,
       // Кириллические названия в Spotify часто записаны латиницей.
-      candidates.push(...(await this.searchText(latin)));
-    }
-    return candidates;
+      transliterate(`${artist} ${title}`),
+      title,
+    ].filter(Boolean);
   }
 
   searchUrl(track) {

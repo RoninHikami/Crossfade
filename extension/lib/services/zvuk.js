@@ -113,12 +113,11 @@ export class ZvukService {
     return (data.search?.tracks?.items || []).filter(Boolean).map((item) => toTrack(item));
   }
 
-  async search(track) {
+  // Запросы от точных к общим; поиск останавливается на первом удачном.
+  searchQueries(track) {
     const title = baseTitle(track.title);
-    const artist = track.artists[0] || "";
-    let candidates = await this.searchText(`${artist} ${title}`);
-    if (!candidates.length) candidates = await this.searchText(title);
-    return candidates;
+    const [artist = "", second] = track.artists;
+    return [`${artist} ${title}`, second && `${second} ${title}`, title].filter(Boolean);
   }
 
   searchUrl(track) {

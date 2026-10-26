@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Crossfade — перенос лайков",
   "short_name": "Crossfade",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Переносит лайкнутые треки между Яндекс Музыкой, Spotify и Звуком. Только добавляет лайки, ничего не удаляет.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6dw9JOptDuArhrqzC3HTd5+dRmoGdEinn4xo/gKjhIbSTZ//fsLDVXZdlODX3wiInqLZ/Rr7tI+1IOczMdWxMNrjgrei2vGnfZzcSomag6H0246LBCAekBqbdVPAiYet5wmo0UDNCtIMz2zqLSlN4mqcJezqP5i0I9kRtZ4+mACagUfz5uDF3PBWKGXAoTTpREkMSFczXD1H9VqHKYOPgB/EujfiHXxMTvChV8T7PoG8u3DTZ9OVzojndFoMGz82WjbBINTYPbonQ6EbjrN5qNJ1RZcLnpLGp3zXp9D10H55GsuoOG6TH+kRvVTHKT4Ip+R5CPmtcLDibEijvt+pUQIDAQAB",
   "icons": {

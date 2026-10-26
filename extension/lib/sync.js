@@ -69,6 +69,26 @@ class TargetIndex {
   }
 }
 
+// --- Поиск трека в целевом сервисе -----------------------------------------
+// Сервис предлагает несколько запросов, от самых точных к самым общим. Пробуем
+// их по очереди и останавливаемся, как только нашёлся подходящий трек: первый
+// запрос мог вернуть, например, только караоке-версии.
+
+export async function findMatch(target, track, threshold = MATCH_THRESHOLD) {
+  const candidates = [];
+  const tried = new Set();
+  let best = { match: null, score: 0 };
+  for (const query of target.searchQueries(track)) {
+    const key = query.trim().toLowerCase();
+    if (!key || tried.has(key)) continue;
+    tried.add(key);
+    candidates.push(...(await target.searchText(query)));
+    best = bestMatch(track, candidates, threshold);
+    if (best.match) break;
+  }
+  return best;
+}
+
 // --- Сам перенос ------------------------------------------------------------
 
 export async function syncLikes(source, target, state, options = {}) {
@@ -133,7 +153,7 @@ export async function syncLikes(source, target, state, options = {}) {
 
     let found;
     try {
-      found = bestMatch(track, await target.search(track), threshold);
+      found = await findMatch(target, track, threshold);
     } catch (error) {
       // Сеть, лимиты API и т.п. — попробуем в следующий раз.
       if (error.fatal) throw error;

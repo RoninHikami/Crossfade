@@ -12,14 +12,19 @@ const TRANSLIT = {
   щ: "sch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
 };
 
-// Пометки версии, которые делают трек «другим» (живое исполнение, ремикс...).
-const VERSION_MARKERS = [
-  "live", "remix", "acoustic", "instrumental", "karaoke", "cover",
-  "demo", "edit", "mix", "version", "unplugged",
-  "концерт", "живое", "ремикс", "акустика", "инструментал",
-];
-// Пометки, которые можно игнорировать.
-const NEUTRAL_MARKERS = ["remaster", "feat", "ft.", "with ", "radio edit", "explicit", "bonus"];
+// Пометки, которые означают другую запись (живое исполнение, ремикс...).
+// Всё остальное в скобках — «Remastered», «Soundtrack Version», «feat. …»,
+// «From "…"» — на запись не влияет и при сравнении не учитывается.
+const VERSION_MARKERS = {
+  live: /\blive\b|концерт|живое исполнение/,
+  remix: /\bremix|ремикс/,
+  acoustic: /\bacoustic\b|акустик/,
+  instrumental: /\binstrumental\b|инструментал|минусовка/,
+  karaoke: /\bkaraoke\b|караоке/,
+  demo: /\bdemo\b|демо/,
+  unplugged: /\bunplugged\b/,
+  slowed: /\bslowed\b|\bsped up\b|\bnightcore\b/,
+};
 
 const BRACKETS_RE = /[(\[{].*?[)\]}]/g;
 const DASH_SUFFIX_RE = /\s+[-–—]\s+.*$/;
@@ -40,9 +45,10 @@ export function normalize(text) {
 }
 
 // Название без скобок и суффиксов вида « - Remastered 2011».
+// Если название состоит из одних символов (например, «∞»), оставляем как есть.
 export function baseTitle(title) {
   const stripped = (title || "").replace(BRACKETS_RE, " ").replace(DASH_SUFFIX_RE, "");
-  return normalize(stripped) || normalize(title);
+  return normalize(stripped) || normalize(title) || (title || "").trim().toLowerCase();
 }
 
 // Значимые пометки версии из названия и поля version.
@@ -52,10 +58,9 @@ export function versionTags(track) {
   if (dash) chunks.push(dash[0]);
   if (track.version) chunks.push(track.version);
   const tags = new Set();
-  for (let chunk of chunks) {
-    chunk = chunk.toLowerCase();
-    if (NEUTRAL_MARKERS.some((n) => chunk.includes(n))) continue;
-    for (const marker of VERSION_MARKERS) if (chunk.includes(marker)) tags.add(marker);
+  for (const chunk of chunks) {
+    const text = chunk.toLowerCase();
+    for (const [tag, re] of Object.entries(VERSION_MARKERS)) if (re.test(text)) tags.add(tag);
   }
   return [...tags].sort().join(",");
 }
@@ -79,6 +84,26 @@ function similarity(a, b) {
   if (!a || !b) return 0;
   if (a === b) return 1;
   return Math.max(ratio(a, b), ratio(transliterate(a), transliterate(b)));
+}
+
+// Доля слов короткого названия, которые есть в длинном. Нужна для названий
+// вроде «Le Cygne, R. 125» ↔ «Le carnaval des animaux, R. 125: XIII. Le cygne».
+function wordContainment(a, b) {
+  const left = new Set(transliterate(a).split(" ").filter(Boolean));
+  const right = new Set(transliterate(b).split(" ").filter(Boolean));
+  const [small, large] = left.size <= right.size ? [left, right] : [right, left];
+  if (small.size < 2) return 0;
+  return [...small].filter((word) => large.has(word)).length / small.size;
+}
+
+export function titleSimilarity(a, b) {
+  const left = baseTitle(a.title);
+  const right = baseTitle(b.title);
+  const direct = similarity(left, right);
+  // Совпадение по словам учитываем, только если и длительность близка:
+  // иначе «Love Me» совпало бы с «Love Me Do».
+  const contained = durationSimilarity(a, b) > 0 ? 0.9 * wordContainment(left, right) : 0;
+  return Math.max(direct, contained);
 }
 
 export function artistSimilarity(a, b) {
@@ -105,12 +130,16 @@ export function score(source, candidate) {
   if (source.isrc && candidate.isrc && source.isrc.toUpperCase() === candidate.isrc.toUpperCase()) {
     return 1;
   }
-  const title = similarity(baseTitle(source.title), baseTitle(candidate.title));
+  const title = titleSimilarity(source, candidate);
   const artist = artistSimilarity(source, candidate);
   if (title < 0.6 || artist < 0.5) return 0;
 
-  let result = 0.5 * title + 0.35 * artist + 0.15 * durationSimilarity(source, candidate);
-  if (versionTags(source) !== versionTags(candidate)) result -= 0.2;
+  const duration = durationSimilarity(source, candidate);
+  let result = 0.5 * title + 0.35 * artist + 0.15 * duration;
+  // Караоке, концертная запись или ремикс — это другой трек, даже если всё остальное совпадает.
+  if (versionTags(source) !== versionTags(candidate)) result -= 0.3;
+  // Разница в длительности больше полуминуты — почти наверняка другая песня или версия.
+  if (duration === 0) result -= 0.1;
   return Math.max(result, 0);
 }
 

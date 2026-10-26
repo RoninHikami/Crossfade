@@ -14,9 +14,10 @@ class FakeService {
     this.searches = 0;
   }
   async getLikedTracks() { return [...this.liked]; }
-  async search(track) {
+  searchQueries(track) { return [track.title]; }
+  async searchText(query) {
     this.searches++;
-    return this.catalog.filter((c) => c.title.toLowerCase() === track.title.toLowerCase());
+    return this.catalog.filter((c) => c.title.toLowerCase() === query.toLowerCase());
   }
   searchUrl(track) { return `https://example.test/?q=${track.title}`; }
   async like(tracks) { this.liked.unshift(...[...tracks].reverse()); }
@@ -108,4 +109,21 @@ test("остановка сохраняет сделанное и продолж
   assert.equal(next.liked.length, 0);
   assert.equal(next.alreadyLiked, 1);
   assert.deepEqual(next.notFound.map((t) => t.id), ["2"]);
+});
+
+test("поиск не останавливается, если первый запрос вернул не то", async () => {
+  const { findMatch } = await import("../extension/lib/sync.js");
+  const queries = [];
+  const target = {
+    searchQueries: () => ["track:exact", "plain", "title only"],
+    async searchText(query) {
+      queries.push(query);
+      if (query === "track:exact") return [tr("spotify", "k", "Song (Karaoke Version)", "Artist")];
+      if (query === "plain") return [tr("spotify", "real", "Song", "Artist")];
+      return [];
+    },
+  };
+  const { match } = await findMatch(target, tr("zvuk", "1", "Song", "Artist"));
+  assert.equal(match.id, "real");
+  assert.deepEqual(queries, ["track:exact", "plain"]);
 });
